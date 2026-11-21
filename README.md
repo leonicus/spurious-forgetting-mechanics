@@ -76,6 +76,12 @@ python -m src.experiments.mlpfree_injection --pretrain_step 16000 --inject_seed 
 python -m src.experiments.mlpfree_injection --pretrain_step 16000 --inject_seed 0 --inject_condition all_values
 ```
 
+### Biography wording experiment
+
+The [biography wording notebook](notebooks/biography_wording_forgetting.ipynb) extends Figure 1 by crossing shared templates and structural paraphrases with concentrated and mixed answer pools. Within each answer pool, it holds the new facts and evaluation prompts fixed. The notebook compares old- and new-fact recall and the common logit shift by training step and at matched new-fact recall.
+
+Run `python -m src.data.preprocess_biography` from the repository root, then open the notebook in a Jupyter kernel with the JAX and analysis dependencies. Use the checkpoint and value partition from the pretraining command above for the Figure 1 run, or select `MODE = "smoke"` for a small CPU run.
+
 ## Pretrained language model
 
 Select the CounterFact facts OLMo 2 1B already knows (the old facts), build the synthetic new facts, and finetune:
