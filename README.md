@@ -84,14 +84,15 @@ Run `python -m src.data.preprocess_biography` from the repository root, then ope
 
 #### Colab GPU setup
 
-Select a GPU runtime in Colab. From the repository checkout, install the project and a compatible CUDA 12 JAX stack in the notebook kernel:
+Select a GPU runtime in Colab. Some Colab images ship a CUDA 13 JAX plugin. Remove its two Python packages before installing the project's CUDA 12 JAX stack, since both plugins register the same `cuda` backend.
 
 ```python
 %cd /content/spurious-forgetting-mechanics
+%pip uninstall -y jax-cuda13-plugin jax-cuda13-pjrt
 %pip install -e . "jax[cuda12]==0.4.38" "flax==0.10.4" "optax==0.2.5" pandas matplotlib
 ```
 
-Restart the Colab session after installation so Python loads the newly installed packages. Then return to the checkout and verify that JAX can see the GPU:
+If you already installed the pinned CUDA 12 stack and see `PJRT_Api already exists for device type cuda`, run the uninstall line and restart the session. Restart after a fresh installation as well so the kernel discovers the current plugins. Then return to the checkout and verify that JAX can see the GPU:
 
 ```python
 %cd /content/spurious-forgetting-mechanics
