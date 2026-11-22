@@ -82,6 +82,8 @@ The [biography wording notebook](notebooks/biography_wording_forgetting.ipynb) e
 
 Run `python -m src.data.preprocess_biography` from the repository root, then open the notebook in a Jupyter kernel with the JAX and analysis dependencies. Use the checkpoint and value partition from the pretraining command above for the Figure 1 run, or select `MODE = "smoke"` for a small CPU run.
 
+The [conclusion report](notebooks/wording_results/conclusions.adoc) includes both figures and analysis from a completed Figure 1-scale run.
+
 #### Colab CPU smoke run
 
 Use a fresh CPU session, set `MODE = "smoke"` in the notebook's first code cell, and run it from the top. Smoke mode selects the CPU backend before JAX initializes. It still uses the project's JAX 0.4.x stack and the preprocessed biography corpus. If you need to install the CPU stack, run this from the checkout and restart the session:

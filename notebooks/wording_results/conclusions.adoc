@@ -1,0 +1,67 @@
+= How biography wording changes spurious forgetting
+:toc:
+
+In this Figure 1-scale run, changing new biographies from shared templates to dossier-style entries changed the pattern of forgetting. For concentrated answers, the shared-template arm produced a sharp early collapse in old A recall followed by a partial recovery. The structural arm avoided that early dip. For mixed answers, structural wording instead worsened old A retention. In both answer pools, the structural arms scored much lower on new facts when tested with the original held-out prompts. The experiment therefore shows an effect of the rendering policy on measured retention, with limited evidence about what the models learned in the dossier format itself.
+
+This report uses the saved outputs of one completed GPU run of the link:../biography_wording_forgetting.ipynb[biography wording notebook]. See the link:../biography_wording_forgetting.adoc[experiment guide] for the implementation and function references.
+
+== Experiment and checks
+
+The MLP-free Transformer completed 16,000 pretraining steps and scored 100% first-answer-token recall on both old groups. All four fine-tuning arms started from this checkpoint and ran for 1,200 injection steps.
+
+* Concentrated answers came from the old B answer pool. Mixed answers came from the union of the old A and old B pools. In the saved mixed sample, the share from old A's half ranged from 46.6% to 54.8% across attributes.
+* The old and new groups shared zero exact person–attribute–value triples. Within each answer pool, the shared and structural arms had an exact match on all structured facts and used the same person draws and attribute order.
+* Evaluation used the original held-out templates in all four arms. The structural renderings averaged about 6.6 fewer nonpadding tokens per biography, and their answer positions averaged about 3.4 tokens earlier. The intervention changed phrasing, template diversity, and token placement together.
+
+== Recall and shared logit shift over training
+
+image::by_step.png[Six panels showing old A and B recall, new-fact recall, the common logit shift, and counterfactual recall over injection steps]
+
+_Figure 1. Curves from the saved run. Blue represents concentrated answers and orange represents mixed answers. Solid lines use shared templates and dashed lines use structural renderings. Recall is full-vocabulary first-answer-token accuracy on the fixed original prompts._
+
+[cols="2,1,1,1,1,1",options="header"]
+|===
+|Arm |Old A trough |Old A final |Old B final |New recall final |Peak common shift
+
+|Concentrated / shared |17.7% |31.2% |74.0% |100.0% |115.5
+|Concentrated / structural |54.4% |54.4% |49.1% |20.0% |136.2
+|Mixed / shared |70.9% |70.9% |70.5% |100.0% |117.3
+|Mixed / structural |52.4% |52.4% |51.8% |14.2% |133.7
+|===
+
+Final values are from step 1,200. The shift is the root mean square across attributes of the L2 norm of the mean old A logit change.
+
+* *Concentrated answers.* With shared templates, old A fell from 100% to 17.7%, recovered to about 55% around step 200, and declined to 31.2%. This is the collapse and partial recovery that motivated the extension. Structural wording produced a more gradual decline, ending 23.2 percentage points higher on old A and 24.9 points lower on old B.
+* *Mixed answers.* Both arms declined on old A over the run. Structural wording finished 18.5 percentage points lower on old A and 18.7 points lower on old B.
+* *New facts.* The two shared-template arms reached 100% on the held-out prompts. The structural arms reached 20.0% and 14.2%. These scores measure transfer to the original evaluation format. The run did not score new facts on held-out dossier-style prompts.
+
+== Comparison at matched new-fact recall
+
+image::by_matched_recall.png[Five panels comparing old recall and logit-shift metrics at the same new-fact recall]
+
+_Figure 2. For each target, each arm is evaluated at its first crossing, with linear interpolation between the adjacent saved evaluations. Curves can therefore compare different training steps and different training exposure counts._
+
+All four arms could be compared between approximately 0.7% and 14.2% new-fact recall. At the top of this range:
+
+[cols="1,1,1,1",options="header"]
+|===
+|Answer pool |Old A, shared |Old A, structural |Structural minus shared
+|Concentrated |about 32% |about 67% |+34.9 percentage points
+|Mixed |about 100% |about 52% |−47.3 percentage points
+|===
+
+The opposite signs show that the wording effect depends on the answer pool even within this early range of matched recall. The range is narrow, and the interpolated values depend on where each arm crosses a target between saved evaluation steps. The comparison aligns performance on the original prompts and does not establish that the models acquired the same amount of new knowledge in their respective training formats.
+
+== What the representation and logit analyses say
+
+Before fine-tuning, the mean old A–new cosine at the first-answer prediction position fell in every attribute under structural rendering. Across the two answer pools and six attributes, those cosines were about 0.070–0.127 for shared templates and 0.002–0.038 for structural renderings. These are similarities in the pretrained Transformer's final backbone vectors. The run contains no external-encoder results.
+
+The structural arms nonetheless had higher peak common-shift norms in both pools. The norm measures the magnitude of a change across vocabulary logits. Whether that change harms recall depends on which logits move relative to the correct answer.
+
+The notebook tests this by adding the shared per-attribute shift to the original logits and by subtracting it from the fine-tuned logits. In the concentrated/shared arm, the common-only readout has a visible early dip, but it remains well above the observed recall trough. Removing the common shift preserves much of early recall in that arm. The other three common-only curves stay near ceiling even though their observed recall declines. These readouts support a role for the direction of the common shift in the concentrated/shared collapse. They do not assign additive shares of lost accuracy, since first-token accuracy depends on the argmax of the combined logits.
+
+== Conclusion and follow-up
+
+This run shows that input rendering and answer-pool concentration interact. Structural rendering largely removed the characteristic early concentrated-answer dip and changed the trajectory of old B as well. It worsened old A retention under mixed answers. Reduced pre-injection representation overlap accompanied these changes, while the common-shift magnitude alone did not track the recall outcomes.
+
+A direct follow-up is to score new facts on both held-out original prompts and held-out dossier-style prompts for every arm. That would help distinguish limited new-fact acquisition from limited transfer between prompt styles. Additional paired seeds and pretrained checkpoints would establish whether the observed interaction repeats. A more closely matched wording intervention could control answer position and template diversity to isolate which feature of the rendering matters.
