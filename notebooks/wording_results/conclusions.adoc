@@ -66,6 +66,25 @@ Final values are from step 1,200. The shift is the root mean square across attri
 * *Mixed answers.* Both arms declined on old A over the run. Structural wording finished 18.5 percentage points lower on old A and 18.7 points lower on old B.
 * *New facts.* The two shared-template arms reached 100% on the held-out prompts. The structural arms reached 20.0% and 14.2%. These scores measure transfer to the original evaluation format. The run did not score new facts on held-out dossier-style prompts.
 
+== Side-by-side with Figure 1
+
+image::figure1_comparison.png[The paper companion animation beside the notebook's old A, old B, and new-fact recall curves]
+
+_Left is the final frame of the repository's link:../../assets/post1_no_title.gif[paper companion animation]. Its two panels show the qualitative pattern in Figure 1. Right shows the three recall panels from the completed notebook run. The panels preserve their original time axes. The animation shows 500 steps, while the notebook shows 1,200._
+
+[cols="1,2,2",options="header"]
+|===
+|Paper condition |Closest notebook arm |What changes in the structural arm
+|Left, C. Answers span both old pools.
+|Mixed / shared (solid orange). Old A declines gradually, with no sharp early trough, while new recall reaches 100%.
+|Mixed / structural (dashed orange). The gradual decline deepens, and new recall on original prompts reaches 14.2%.
+|Right, B′. Answers come from old B's pool.
+|Concentrated / shared (solid blue). Old A collapses, partially recovers, then declines again. New recall reaches 100%.
+|Concentrated / structural (dashed blue). Old A avoids the sharp early collapse, and new recall on original prompts reaches 20.0%.
+|===
+
+The printed link:https://arxiv.org/abs/2610.08718v1[Figure 1] includes old B as a separate trace and shows seed variability. The repository's link:../../scripts/plot_fig1_contrast.py[Figure 1 plotting code] specifies means and one standard deviation over three mixed runs and five concentrated runs. This notebook comparison uses one injection seed, and the dashed renderings are new conditions. The visual agreement of the shared-template arms is about the pattern of recall, since exact point-by-point agreement would require the paper's original curves and matching aggregation.
+
 == Comparison at matched new-fact recall
 
 image::by_matched_recall.png[Five panels comparing old recall and logit-shift metrics at the same new-fact recall]
