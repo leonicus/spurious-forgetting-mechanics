@@ -13,6 +13,37 @@ The MLP-free Transformer completed 16,000 pretraining steps and scored 100% firs
 * The old and new groups shared zero exact person–attribute–value triples. Within each answer pool, the shared and structural arms had an exact match on all structured facts and used the same person draws and attribute order.
 * Evaluation used the original held-out templates in all four arms. The structural renderings averaged about 6.6 fewer nonpadding tokens per biography, and their answer positions averaged about 3.4 tokens earlier. The intervention changed phrasing, template diversity, and token placement together.
 
+== What each arm sees
+
+Take one new person, Ada Morgan Lee, and look at two of her six facts. For this example, suppose the partition puts the year 1912 and the city Paris in old B's answer pools, and London in old A's birthplace pool. These are illustrative assignments. The actual split is seeded and computed separately for each attribute.
+
+In the concentrated pool, Ada's two answers are *1912* and *Paris*, both from old B's pools. In this mixed-pool example, the answers are *1912* and *London*, one from each side. A mixed biography can draw any combination from the two pools.
+
+[cols="1,2,4",options="header"]
+|===
+|Arm |Facts about Ada |Example text seen during fine-tuning
+
+|Concentrated / shared
+|Birth year 1912, birthplace Paris
+|The birth year of Ada Morgan Lee is recorded as 1912. The birthplace of Ada Morgan Lee is the city of Paris.
+
+|Concentrated / structural
+|Birth year 1912, birthplace Paris
+|The birth year of Ada Morgan Lee. 1912. The birthplace of Ada Morgan Lee. Paris.
+
+|Mixed / shared
+|Birth year 1912, birthplace London
+|The birth year of Ada Morgan Lee is recorded as 1912. The birthplace of Ada Morgan Lee is the city of London.
+
+|Mixed / structural
+|Birth year 1912, birthplace London
+|The birth year of Ada Morgan Lee. 1912. The birthplace of Ada Morgan Lee. London.
+|===
+
+Read down within an answer pool to see the wording change with the facts held fixed. Compare concentrated with mixed at the same wording to see what changing the available answers does. Ada is new in every arm. An answer such as 1912 can be familiar from pretraining while the fact that Ada was born in 1912 is new.
+
+*What the model sees at evaluation.* Both wording arms within a pool get the same original-style held-out prompts. For example, given the prefix “Ada Morgan Lee was born in the year ”, both arms are scored on whether they predict the first token of *1912*. For “Ada Morgan Lee is originally from ”, the target is *Paris* in the concentrated pair and *London* in the mixed pair. These snippets illustrate individual answer slots. In the actual run, the model also receives the preceding biography tokens. Old A and old B are evaluated on their own fixed biographies throughout, and those biographies never enter the fine-tuning batches.
+
 == Recall and shared logit shift over training
 
 image::by_step.png[Six panels showing old A and B recall, new-fact recall, the common logit shift, and counterfactual recall over injection steps]
