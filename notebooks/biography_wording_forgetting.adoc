@@ -1,0 +1,91 @@
+= Biography wording and spurious forgetting
+:toc:
+
+This guide accompanies the link:biography_wording_forgetting.ipynb[biography wording notebook]. It explains how the notebook reuses the Transformer protocol from Figure 1 and tests whether changing the phrasing of new biographies changes the temporary collapse in old-fact recall.
+
+== 1. Recreate the Figure 1 starting point
+
+In paper mode, the notebook loads the step-16,000 MLP-free Transformer checkpoint from the README's pretraining command. The checkpoint was trained on biographies of two groups, old A and old B. The code calls old B `ballast`. For each attribute, old A draws answers from half X of the value pool and old B draws from half Y. The notebook checks that the checkpoint recalls at least 90% of first answer tokens in both groups before starting the four runs.
+
+The notebook uses the same new people in both answer regimes. Concentrated answers come from Y only, corresponding to B′ in Figure 1 and `disjoint` in the repository. Mixed answers come from the combined X and Y pool, corresponding to C and `all_values`. The mixed condition samples from the union. It does not impose a quota from each half on individual biographies.
+
+[cols="1,3",options="header"]
+|===
+|Code |What it does
+|link:../src/data/preprocess_biography.py#L78[`preprocess_biography.main()`]
+|Tokenizes the templates, names, and attribute values with the GPT-2 tokenizer and writes the preprocessed corpus with a pruned vocabulary.
+|link:../src/experiments/mlpfree_pretrain.py[`mlpfree_pretrain.main()`]
+|Trains the reference MLP-free model and writes the checkpoints.
+|link:../src/experiments/knowledge_injection.py#L798[`build()`] and link:../src/experiments/knowledge_injection.py#L409[`assign_values()`]
+|Construct the old and new populations, apply the answer-partition rules, and prepare the held-out evaluation datasets.
+|link:../src/experiments/mlpfree_common.py#L265[`mlpfree_pretrain_key()`] and link:../src/experiments/ckpt.py#L162[`load_state()`]
+|Identify the matching checkpoint from the configuration and data, then restore it with parameter compatibility checks.
+|===
+
+The notebook's first experiment cell builds both answer regimes, asserts that old evaluation arrays match across them, and creates the initial fine-tuning state from the loaded parameters and a fresh optimizer.
+
+== 2. Render the same new biographies two ways
+
+Each person has six facts covering birth year, birthplace, university, major, employer, and work location. The wording manipulation changes how those facts are rendered.
+
+* *Shared templates* use the original repository template families. A rendered sentence could read “The birth year of Ada Morgan Lee is recorded as 1912.”
+* *Structural paraphrases* use short dossier entries. The same fact could read “The birth year of Ada Morgan Lee. 1912.” The renderer takes a noun phrase from an original template, retains the name in the heading, and places the answer in a separate fragment. It derives the structural headings from the template bank, so a dossier entry need not be a direct rewrite of the exact sentence drawn in the shared arm.
+
+The two versions keep the name and answer token IDs. This lets both run against the same checkpoint and its existing vocabulary. Within either answer regime, the two wordings share the person draws, facts, attribute order, and held-out evaluation arrays. The intervention can change answer positions, sequence lengths, and template diversity, so the experiment measures the effect of this rendering policy. Light paraphrases and biographies with different attributes remain follow-ups.
+
+[cols="1,3",options="header"]
+|===
+|Code |What it does
+|Notebook §2, `dossier_bank()`
+|Builds alternate token tables and matching text from the repository's noun-phrase templates. It preserves the name and answer insertion slots.
+|Notebook §2, `training_view()`
+|Copies the new-fact dataset, swaps the training template table for the structural arm, preserves the evaluation arrays, and resets the sampler with the paired seed.
+|Notebook §2, `fact_values()`, `triples()`, and `slots()`
+|Recover the structured records and first-answer positions. The checks verify exact fact equality within a wording pair, old–new person disjointness, and matching answers and attribute order in a seeded training draw.
+|link:../src/data/biography.py#L173[`BiographyDataset._generate()`] and link:../src/data/biography.py#L230[`BiographyDataset.get_batch()`]
+|Render complete token sequences with a name prompt, then serve them as training batches with role masks and exposure counts.
+|link:../src/experiments/knowledge_injection.py#L680[`reset_stream()`]
+|Rewinds the dataset RNG and clears the batch cache and exposure counter.
+|===
+
+The overlap table separates exact person–attribute–value triples from answer overlap. New people can share answer values with old people even when the triples have no overlap.
+
+== 3. Measure overlap before fine-tuning
+
+The notebook compares the final Transformer backbone vectors at the position that predicts each first answer token. It compares old A and old B with each new condition by attribute, then directly compares paired shared and structural renderings of the same new fact. The model sees preceding biography tokens at each prediction position.
+
+The optional frozen external encoder compares full biographies and isolated fact prefixes. The prefixes end immediately before the answer and are scored with names visible and masked. The same-template control changes a birth year while keeping the person and wording fixed. Its isolated prefix is identical by construction, while its full biography contains the altered answer.
+
+* Notebook §3, `probe()` selects a fixed set of people and template draws. `read_slots()` extracts backbone vectors, and `cross_cosine()` and `paired_cosine()` compute the old–new and same-fact comparisons.
+* Notebook §3, `render_text()` reconstructs the external encoder inputs, including the masked prefixes and changed-answer control. `embed()` encodes the texts and groups prefix vectors by person and attribute.
+* link:../src/experiments/knowledge_injection.py#L534[`first_token_positions()`] maps the repository's role mask to the answer prediction columns and target token IDs. The notebook's `slots()` gathers this information for all six attributes.
+
+== 4. Fine-tune and measure recall and the shared shift
+
+Each of the four runs begins from the same parameters and a fresh AdamW state. The runs use the same constant learning rate and training budget. Only new biographies enter fine-tuning. At each scheduled evaluation, the model predicts the first answer token from the preceding gold biography tokens. Old A, old B, and new-fact recall all use fixed, original held-out templates. Within each answer regime, both wordings receive the same input rows at evaluation.
+
+For each attribute in old A, the notebook subtracts the step-zero logits from each person's current logits and averages the difference across people. It reports the L2 norm of that vector per attribute and the root mean square of those norms. It also evaluates two counterfactual readouts:
+
+* *Common only* adds the shared shift to the step-zero logits.
+* *Varying only* removes the shared shift from the current logits.
+
+These readouts show whether the shared change alone can reproduce the recall drop and how much of the drop remains when it is removed.
+
+* Notebook §4, `run_arm()` loops over injection steps, scores the three evaluation groups, computes the shared shift and counterfactuals, and returns per-person training exposure counts. The outer loop asserts matching exposure counts in the two wording arms.
+* Notebook §§3–4, `fixed_readout()`, `score_slots()`, and `recall()` evaluate the full-vocabulary argmax at first-answer positions on the frozen evaluation arrays.
+* link:../src/train.py#L81[`train_step()`] updates the model using link:../src/data/biography.py#L257[`BiographyDataset.loss_fn()`], the repository's biography token loss.
+* link:../src/experiments/analyze_shift_decomposition.py[Repository shift decomposition] supplies the common-versus-varying logit analysis that the notebook follows.
+
+== 5. Compare equal steps and equal new-fact recall
+
+Plots by step show when forgetting and recovery occur. The matched-recall comparison asks how much old knowledge remains when each arm first reaches the same level of new-fact recall. The notebook selects targets inside the range attainable by all four arms, finds each arm's first crossing, and interpolates between the adjacent recorded evaluations. When there is no shared range of positive width, it reports that and keeps the step-based plots.
+
+The matching calculation is inline in notebook §5. `plot_grid()` renders the recall and shift curves, and the final export cell writes tables and run metadata.
+
+If the dossier wording lowers external cosine while the model overlap, shift, and collapse persist, the encoder may miss structure the trained model still uses. If the shift and collapse both shrink at matched new-fact recall, the result supports a role for this rendering policy. The common-only and varying-only curves help assess whether the shift accounts for the recall change.
+
+== Run and validation status
+
+From the repository root, run `python -m src.data.preprocess_biography` in the JAX environment and open the notebook in a Jupyter kernel with the JAX and analysis dependencies. Paper mode requires the matching checkpoint and value partition. Set `MODE = "smoke"` for a small CPU run, or enable `EXTERNAL_EMBEDDINGS` with a locally available or downloadable sentence encoder to compute that comparison.
+
+All four arms were exercised in a CPU smoke test with a local test corpus. The checkpoint-key configuration and matched-recall calculation were checked separately. The Figure 1-scale run and live external embedding scores remain unverified.
