@@ -82,6 +82,35 @@ The [biography wording notebook](notebooks/biography_wording_forgetting.ipynb) e
 
 Run `python -m src.data.preprocess_biography` from the repository root, then open the notebook in a Jupyter kernel with the JAX and analysis dependencies. Use the checkpoint and value partition from the pretraining command above for the Figure 1 run, or select `MODE = "smoke"` for a small CPU run.
 
+#### Colab GPU setup
+
+Select a GPU runtime in Colab. From the repository checkout, install the project and a compatible CUDA 12 JAX stack in the notebook kernel:
+
+```python
+%cd /content/spurious-forgetting-mechanics
+%pip install -e . "jax[cuda12]==0.4.38" "flax==0.10.4" "optax==0.2.5" pandas matplotlib
+```
+
+Restart the Colab session after installation so Python loads the newly installed packages. Then return to the checkout and verify that JAX can see the GPU:
+
+```python
+%cd /content/spurious-forgetting-mechanics
+import sys
+import jax
+
+print(jax.__version__, jax.devices())
+assert any(device.platform == "gpu" for device in jax.devices()), "JAX did not detect a GPU"
+```
+
+For a new Figure 1 run, preprocess the corpus and pretrain using the notebook's interpreter. Skip pretraining if you already have the matching checkpoint and partition.
+
+```python
+!{sys.executable} -m src.data.preprocess_biography
+!JAX_PLATFORMS=cuda {sys.executable} -m src.experiments.mlpfree_pretrain
+```
+
+Pretraining creates the value partition and saves checkpoints. After step 16,000, run the notebook with `MODE = "paper"`. If you see a `get_opaque_trace_state` error, check that the session was restarted and reports JAX 0.4.38. The project targets JAX 0.4.x.
+
 ## Pretrained language model
 
 Select the CounterFact facts OLMo 2 1B already knows (the old facts), build the synthetic new facts, and finetune:
